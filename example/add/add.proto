@@ -1,0 +1,18 @@
+syntax="proto2";
+package example;
+option cc_generic_services = true;
+
+message AddRequest {
+    required string key = 1;
+    required int64 number = 2;
+}
+
+message AddResponse {
+    required bool success = 1;
+    required int64 result = 2;
+    optional string redirect = 3;
+}
+
+service AddService {
+    rpc write(AddRequest) returns(AddResponse);
+};
