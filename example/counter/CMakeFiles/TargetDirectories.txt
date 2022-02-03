@@ -1,2 +1,0 @@
-/data1/home/walterzhao/test/raft/braft/example/counter/CMakeFiles/counter_client.dir
-/data1/home/walterzhao/test/raft/braft/example/counter/CMakeFiles/counter_server.dir

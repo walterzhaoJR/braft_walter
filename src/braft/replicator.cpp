@@ -415,6 +415,8 @@ void Replicator::_on_rpc_returned(ReplicatorId id, brpc::Controller* cntl,
         if (response->term() > r->_options.term) {
             BRAFT_VLOG << " fail, greater term " << response->term()
                        << " expect term " << r->_options.term;
+            LOG(ERROR) << " fail, greater term " << response->term()
+                       << " expect term " << r->_options.term;
             r->_reset_next_index();
 
             NodeImpl *node_impl = r->_options.node;
@@ -433,6 +435,9 @@ void Replicator::_on_rpc_returned(ReplicatorId id, brpc::Controller* cntl,
         ss << " fail, find next_index remote last_log_index " << response->last_log_index()
            << " local next_index " << r->_next_index 
            << " rpc prev_log_index " << request->prev_log_index();
+        LOG(ERROR) << " fail, find next_index remote last_log_index " << response->last_log_index()
+           << " local next_index " << r->_next_index
+           << " rpc prev_log_index " << request->prev_log_index();
         BRAFT_VLOG << ss.str();
         if (rpc_send_time > r->_last_rpc_send_timestamp) {
             r->_last_rpc_send_timestamp = rpc_send_time; 
@@ -443,6 +448,9 @@ void Replicator::_on_rpc_returned(ReplicatorId id, brpc::Controller* cntl,
             BRAFT_VLOG << "Group " << r->_options.group_id
                        << " last_log_index at peer=" << r->_options.peer_id 
                        << " is " << response->last_log_index();
+            LOG(INFO) << "Group " << r->_options.group_id
+                       << " last_log_index at peer=" << r->_options.peer_id
+                       << " is " << response->last_log_index();
             // The peer contains less logs than leader
             r->_next_index = response->last_log_index() + 1;
         } else {  
@@ -450,6 +458,8 @@ void Replicator::_on_rpc_returned(ReplicatorId id, brpc::Controller* cntl,
             // decrease _last_log_at_peer by one to test the right index to keep
             if (BAIDU_LIKELY(r->_next_index > 1)) {
                 BRAFT_VLOG << "Group " << r->_options.group_id 
+                           << " log_index=" << r->_next_index << " dismatch";
+                LOG(INFO) << "Group " << r->_options.group_id
                            << " log_index=" << r->_next_index << " dismatch";
                 --r->_next_index;
             } else {
@@ -571,6 +581,13 @@ void Replicator::_send_empty_entries(bool is_heartbeat) {
         << " term " << _options.term
         << " prev_log_index " << request->prev_log_index()
         << " last_committed_index " << request->committed_index();
+
+    // LOG(INFO) << "node " << _options.group_id << ":" << _options.server_id
+    //           << " send HeartbeatRequest to " << _options.peer_id
+    //           << " term " << _options.term
+    //           << " prev_log_index " << request->prev_log_index()
+    //           << " last_committed_index " << request->committed_index()
+    //           << " is_heartbeat " << is_heartbeat;
 
     google::protobuf::Closure* done = brpc::NewCallback(
                 is_heartbeat ? _on_heartbeat_returned : _on_rpc_returned, 

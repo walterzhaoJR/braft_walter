@@ -51,6 +51,7 @@ int LocalRaftMetaStorage::set_term(const int64_t term) {
     if (_is_inited) {
         _term = term;
         LOG(DEBUG) << "set_term term " << term;
+        LOG(INFO) << "set_term term " << term;
         return save();
     } else {
         LOG(WARNING) << "LocalRaftMetaStorage not init(), path: " << _path;
@@ -71,6 +72,7 @@ int LocalRaftMetaStorage::set_votedfor(const PeerId& peer_id) {
     if (_is_inited) {
         _votedfor = peer_id;
         LOG(DEBUG) << "set_votedfor peer_id" << peer_id.to_string(); 
+        LOG(INFO) << "set_votedfor peer_id" << peer_id.to_string(); 
         return save();
     } else {
         LOG(WARNING) << "LocalRaftMetaStorage not init(), path: " << _path;
@@ -82,7 +84,8 @@ int LocalRaftMetaStorage::set_term_and_votedfor(const int64_t term, const PeerId
     if (_is_inited) {
         _term = term;
         _votedfor = peer_id;
-        LOG(DEBUG) << "set_term_and_votedfor term " << term << " peer_id" << peer_id.to_string(); 
+        LOG(DEBUG) << "set_term_and_votedfor term " << term << " peer_id" << peer_id.to_string();
+        LOG(INFO) << "set_term_and_votedfor term " << term << " peer_id " << peer_id.to_string(); 
         return save();
     } else {
         LOG(WARNING) << "LocalRaftMetaStorage not init(), path: " << _path;

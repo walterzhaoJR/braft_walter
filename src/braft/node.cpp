@@ -591,6 +591,11 @@ int NodeImpl::init(const NodeOptions& options) {
 
     if (!_conf.empty()) {
         step_down(_current_term, false, butil::Status::OK());
+    } else {
+        if (STATE_LEARNER == _state) {
+            LOG(INFO) << "node " << _group_id << ":" << _server_id
+                      << " conf is empty state:" << state2str(_state);
+        }
     }
 
     // add node to NodeManager
@@ -972,7 +977,7 @@ void NodeImpl::shutdown(Closure* done) {
             NodeManager::GetInstance()->remove(this);
             // if it is leader, set the wakeup_a_candidate with true,
             // if it is follower, call on_stop_following in step_down
-            if (_state <= STATE_FOLLOWER) {
+            if (_state <= STATE_FOLLOWER) { // walterzhao add leanrer
                 butil::Status status;
                 status.set_error(ESHUTDOWN, "Raft node is going to quit.");
                 step_down(_current_term, _state == STATE_LEADER, status);
@@ -1612,6 +1617,11 @@ void NodeImpl::step_down(const int64_t term, bool wakeup_a_candidate,
               << " new_term " << term
               << " wakeup_a_candidate=" << wakeup_a_candidate;
 
+    LOG(INFO) << "node " << _group_id << ":" << _server_id
+               << " term " << _current_term
+               << " stepdown from " << state2str(_state)
+               << " new_term " << term
+               << " wakeup_a_candidate=" << wakeup_a_candidate;
     if (!is_active_state(_state)) {
         return;
     }
@@ -1633,8 +1643,17 @@ void NodeImpl::step_down(const int64_t term, bool wakeup_a_candidate,
     PeerId empty_id;
     reset_leader_id(empty_id, status);
 
-    // soft state in memory
-    _state = STATE_FOLLOWER;
+    if (STATE_LEARNER != _state) { // walterzhao
+        // soft state in memory
+        _state = STATE_FOLLOWER;
+    } else {
+        LOG(INFO) << "node " << _group_id << ":" << _server_id
+                  << " term " << _current_term
+                  << " state " << state2str(_state)
+                  << " new_term " << term
+                  << " does not change state";
+    }
+
     // _conf_ctx.reset() will stop replicators of catching up nodes
     _conf_ctx.reset();
     _last_leader_timestamp = butil::monotonic_time_ms();
@@ -1676,7 +1695,14 @@ void NodeImpl::step_down(const int64_t term, bool wakeup_a_candidate,
         // mark _stop_transfer_arg to NULL
         _stop_transfer_arg = NULL;
     }
-    _election_timer.start();
+    if (STATE_LEARNER != _state) { // walterzhao
+        LOG(INFO) << "node " << _group_id << ":" << _server_id
+                  << " term " << _current_term
+                  << " state " << state2str(_state)
+                  << " new_term " << term
+                  << " will start election_timer";
+        _election_timer.start();
+    }
 }
 // in lock
 void NodeImpl::reset_leader_id(const PeerId& new_leader_id, 
@@ -1703,17 +1729,25 @@ void NodeImpl::check_step_down(const int64_t request_term, const PeerId& server_
     butil::Status status;
     if (request_term > _current_term) {
         status.set_error(ENEWLEADER, "Raft node receives message from "
-                "new leader with higher term."); 
+                "new leader with higher term.");
+        LOG(INFO) << "Raft node receives message from new leader with higher term.request_term:"
+                  << request_term << " server_id:" << server_id;
         step_down(request_term, false, status);
-    } else if (_state != STATE_FOLLOWER) { 
-        status.set_error(ENEWLEADER, "Candidate receives message "
+    // } else if (_state != STATE_FOLLOWER) { // walterzhao
+    } else if (_state != STATE_FOLLOWER && _state != STATE_LEARNER) {
+        status.set_error(ENEWLEADER, "Candidate receives message " // walterzhao change log
                 "from new leader with the same term.");
+        LOG(INFO) << "Candidate receives message from new leader with the same term.request_term:"
+                  << request_term << " server_id:" << server_id;
         step_down(request_term, false, status);
     } else if (_leader_id.is_empty()) {
         status.set_error(ENEWLEADER, "Follower receives message "
                 "from new leader with the same term.");
-        step_down(request_term, false, status); 
+        LOG(INFO) << "Follower receives message  from new leader with the same term.request_term:"
+                  << request_term << " server_id:" << server_id;
+        step_down(request_term, false, status);
     }
+    LOG(INFO) << "check_step_down _leader_id:" << _leader_id;
     // save current leader
     if (_leader_id.is_empty()) { 
         reset_leader_id(server_id, status);
@@ -1936,6 +1970,7 @@ int NodeImpl::handle_pre_vote_request(const RequestVoteRequest* request,
     return 0;
 }
 
+// walterzhao 这些流程加上一些防御性编程 检查下state 防止learner走到这些流程
 int NodeImpl::handle_request_vote_request(const RequestVoteRequest* request,
                                           RequestVoteResponse* response) {
     std::unique_lock<raft_mutex_t> lck(_mutex);
@@ -2147,7 +2182,7 @@ void NodeImpl::handle_append_entries_request(brpc::Controller* cntl,
     }
 
     // check term and state to step down
-    check_step_down(request->term(), server_id);   
+    check_step_down(request->term(), server_id);
      
     if (server_id != _leader_id) {
         LOG(ERROR) << "Another peer " << _group_id << ":" << server_id
@@ -2180,6 +2215,10 @@ void NodeImpl::handle_append_entries_request(brpc::Controller* cntl,
     const int64_t prev_log_index = request->prev_log_index();
     const int64_t prev_log_term = request->prev_log_term();
     const int64_t local_prev_log_term = _log_manager->get_term(prev_log_index);
+    LOG(INFO) << "node " << _group_id << ":" << _server_id
+                 << " prev_log_index " << prev_log_index
+                 << " prev_log_term " << rprev_log_term
+                 << " local_prev_log_term " << local_prev_log_term;
     if (local_prev_log_term != prev_log_term) {
         int64_t last_index = _log_manager->last_log_index();
         int64_t saved_term = request->term();
@@ -2234,6 +2273,8 @@ void NodeImpl::handle_append_entries_request(brpc::Controller* cntl,
         return;
     }
 
+    LOG(INFO) << "node " << _group_id << ":" << _server_id
+              << " will parse request";
     // Parse request
     butil::IOBuf data_buf;
     data_buf.swap(cntl->request_attachment());
@@ -2581,7 +2622,7 @@ void NodeImpl::get_status(NodeStatus* status) {
         status->leader_id = _server_id;
     } else if (status->state == STATE_FOLLOWER) {
         status->leader_id = _leader_id;
-    }
+    } // walterzhao todo add learner
 
     LogManagerStatus log_manager_status;
     _log_manager->get_status(&log_manager_status);
