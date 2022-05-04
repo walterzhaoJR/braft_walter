@@ -2217,7 +2217,7 @@ void NodeImpl::handle_append_entries_request(brpc::Controller* cntl,
     const int64_t local_prev_log_term = _log_manager->get_term(prev_log_index);
     LOG(INFO) << "node " << _group_id << ":" << _server_id
                  << " prev_log_index " << prev_log_index
-                 << " prev_log_term " << rprev_log_term
+                 << " prev_log_term " << prev_log_term
                  << " local_prev_log_term " << local_prev_log_term;
     if (local_prev_log_term != prev_log_term) {
         int64_t last_index = _log_manager->last_log_index();
