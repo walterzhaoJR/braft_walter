@@ -526,6 +526,8 @@ int Replicator::_fill_common_fields(AppendEntriesRequest* request,
                                     int64_t prev_log_index,
                                     bool is_heartbeat) {
     const int64_t prev_log_term = _options.log_manager->get_term(prev_log_index);
+    LOG(INFO) << "Group " << _options.group_id << "prev_log_term=" << prev_log_term
+                       << " log_index=" << prev_log_index << " was compacted";
     if (prev_log_term == 0 && prev_log_index != 0) {
         if (!is_heartbeat) {
             CHECK_LT(prev_log_index, _options.log_manager->first_log_index());
@@ -541,6 +543,7 @@ int Replicator::_fill_common_fields(AppendEntriesRequest* request,
             prev_log_index = 0;
         }
     }
+    
     request->set_term(_options.term);
     request->set_group_id(_options.group_id);
     request->set_server_id(_options.server_id.to_string());
@@ -559,6 +562,12 @@ void Replicator::_send_empty_entries(bool is_heartbeat) {
                 request.get(), _next_index - 1, is_heartbeat) != 0) {
         CHECK(!is_heartbeat);
         // _id is unlock in _install_snapshot
+        LOG(INFO) << "_send_empty_entries will _install_snapshot"
+                  << "node " << _options.group_id << ":" << _options.server_id
+                  << " send HeartbeatRequest to " << _options.peer_id
+                  << " term " << _options.term
+                  << " prev_log_index " << request->prev_log_index()
+                  << " last_committed_index " << request->committed_index();
         return _install_snapshot();
     }
     if (is_heartbeat) {

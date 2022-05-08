@@ -117,7 +117,7 @@ bool NodeManager::add(NodeImpl* node) {
     if (!server_exists(node->node_id().peer_id.addr)) {
         return false;
     }
-
+    LOG(INFO) << "NodeManager add node:" << node->node_id().to_string();
     return _nodes.Modify(_add_node, node) != 0;
 }
 

@@ -35,8 +35,3 @@ It's widely used inside Baidu to build highly-available systems, such as:
   * [ZAB](./docs/cn/zab_protocol.md)
   * [QJM](./docs/cn/qjm.md)
 
-
-
-
-# Other
-* my braft

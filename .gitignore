@@ -1,2 +1,5 @@
 build/
-example/counter/build/
+./example/counter/build/
+./example/counter/counter.pb.cc
+./example/counter/counter.pb.h
+./example/counter/Makefile

@@ -1709,6 +1709,10 @@ void NodeImpl::reset_leader_id(const PeerId& new_leader_id,
         const butil::Status& status) {
     if (new_leader_id.is_empty()) {
         if (!_leader_id.is_empty() && _state > STATE_TRANSFERRING) {
+            LOG(INFO) << "node " << _group_id << ":" << _server_id
+                  << " term " << _current_term
+                  << " state " << state2str(_state)
+                  << " will on_stop_following"; 
             LeaderChangeContext stop_following_context(_leader_id, 
                     _current_term, status);
             _fsm_caller->on_stop_following(stop_following_context);
@@ -1716,6 +1720,10 @@ void NodeImpl::reset_leader_id(const PeerId& new_leader_id,
         _leader_id.reset();
     } else {
         if (_leader_id.is_empty()) {
+            LOG(INFO) << "node " << _group_id << ":" << _server_id
+                  << " term " << _current_term
+                  << " state " << state2str(_state)
+                  << " will on_start_following"; 
             LeaderChangeContext start_following_context(new_leader_id, 
                     _current_term, status);
             _fsm_caller->on_start_following(start_following_context);
@@ -3094,6 +3102,8 @@ void NodeImpl::ConfigurationCtx::reset(butil::Status* st) {
     // reset() should be called only once
     if (_stage == STAGE_NONE) {
         BRAFT_VLOG << "node " << _node->node_id()
+                   << " reset ConfigurationCtx when stage is STAGE_NONE already";
+        LOG(ERROR) << "node " << _node->node_id()
                    << " reset ConfigurationCtx when stage is STAGE_NONE already";
         return;
     }
