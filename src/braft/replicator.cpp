@@ -28,6 +28,7 @@
 #include "braft/ballot_box.h"                    // BallotBox 
 #include "braft/log_entry.h"                     // LogEntry
 #include "braft/snapshot_throttle.h"             // SnapshotThrottle
+#include "braft/node_manager.h"
 
 namespace braft {
 
@@ -526,12 +527,14 @@ int Replicator::_fill_common_fields(AppendEntriesRequest* request,
                                     int64_t prev_log_index,
                                     bool is_heartbeat) {
     const int64_t prev_log_term = _options.log_manager->get_term(prev_log_index);
-    LOG(INFO) << "Group " << _options.group_id << "prev_log_term=" << prev_log_term
+    LOG(INFO) << "Group " << _options.group_id << " prev_log_term=" << prev_log_term
                        << " log_index=" << prev_log_index << " was compacted";
     if (prev_log_term == 0 && prev_log_index != 0) {
         if (!is_heartbeat) {
             CHECK_LT(prev_log_index, _options.log_manager->first_log_index());
             BRAFT_VLOG << "Group " << _options.group_id
+                       << " log_index=" << prev_log_index << " was compacted";
+            LOG(ERROR) << "does not Group heartbeat " << _options.group_id
                        << " log_index=" << prev_log_index << " was compacted";
             return -1;
         } else {
@@ -571,6 +574,12 @@ void Replicator::_send_empty_entries(bool is_heartbeat) {
         return _install_snapshot();
     }
     if (is_heartbeat) {
+        void get_all_nodes(std::vector<scoped_refptr<NodeImpl> >* nodes);
+        std::vector<scoped_refptr<NodeImpl> > nodes;
+        NodeManager::GetInstance()->get_all_nodes(&nodes);
+        for (const auto one : nodes) {
+            LOG(INFO) << "_send_empty_entries is hb node:" << one.get()->node_id().to_string();
+        }
         _heartbeat_in_fly = cntl->call_id();
         _heartbeat_counter++;
         // set RPC timeout for heartbeat, how long should timeout be is waiting to be optimized.
@@ -683,6 +692,8 @@ void Replicator::_send_entries() {
         // _id is unlock in _wait_more
         if (_next_index < _options.log_manager->first_log_index()) {
             _reset_next_index();
+            LOG(INFO) << "_send_entries will _install_snapshot._next_index:" << _next_index
+              << " _options.log_manager->first_log_index:" << _options.log_manager->first_log_index();
             return _install_snapshot();
         }
         // NOTICE: a follower's readonly mode does not prevent install_snapshot
