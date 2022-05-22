@@ -86,3 +86,5 @@ perf/share/*
 
 example/counter/runtime
 .vscode/settings.json
+example/counter/counter_server
+example/counter/counter_client

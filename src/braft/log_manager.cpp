@@ -561,6 +561,8 @@ int LogManager::disk_thread(void* meta,
                 if (tpc) {
                     BRAFT_VLOG << "Truncating storage to first_index_kept="
                         << tpc->first_index_kept();
+                    LOG(INFO) << "Truncating storage to first_index_kept="
+                        << tpc->first_index_kept();
                     ret = log_manager->_log_storage->truncate_prefix(
                                     tpc->first_index_kept());
                     break;
