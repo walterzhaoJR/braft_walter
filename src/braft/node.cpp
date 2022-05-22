@@ -1904,9 +1904,11 @@ void NodeImpl::unsafe_apply_configuration(const Configuration& new_conf,
     entry->type = ENTRY_TYPE_CONFIGURATION;
     entry->peers = new std::vector<PeerId>;
     new_conf.list_peers(entry->peers);
+    LOG(INFO) << "unsafe_apply_configuration new_conf:" << new_conf.to_string();
     if (old_conf) {
         entry->old_peers = new std::vector<PeerId>;
         old_conf->list_peers(entry->old_peers);
+        LOG(INFO) << "unsafe_apply_configuration old_conf:" << old_conf->to_string();
     }
     ConfigurationChangeDone* configuration_change_done =
             new ConfigurationChangeDone(this, _current_term, leader_start);
@@ -3067,7 +3069,9 @@ void NodeImpl::ConfigurationCtx::next_stage() {
     CHECK(is_busy());
     switch (_stage) {
     case STAGE_CATCHING_UP:
+        LOG(INFO) << "_nchanges size:" << _nchanges;
         if (_nchanges > 1) {
+            
             _stage = STAGE_JOINT;
             Configuration old_conf(_old_peers);
             return _node->unsafe_apply_configuration(

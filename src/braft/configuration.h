@@ -263,6 +263,15 @@ public:
     // Parse Configuration from a string into |this|
     // Returns 0 on success, -1 otherwise
     int parse_from(butil::StringPiece conf);
+
+    std::string to_string() const {
+    std::string str = "";
+    for (const auto &one : _peers) {
+        str.append("peer:").append(one.to_string()).append(" ");
+    }
+
+    return str;
+}
     
 private:
     std::set<PeerId> _peers;
